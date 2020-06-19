@@ -17,8 +17,10 @@ public class MainActivity extends AppCompatActivity {
     webSettings.setJavaScriptEnabled(true);
     webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
     wv.setWebChromeClient(new ResworbChromeClient());
-    wv.setWebViewClient(new ResworbClient());
+    wv.setWebViewClient(new ResworbClient(this));
     wv.addJavascriptInterface(new ResworbApi(wv, MainActivity.this), "resworb");
     wv.loadUrl("file:///android_asset/index.html");
+
+    wv.evaluateJavascript("document.write('789456')", null);
   }
 }
