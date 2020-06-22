@@ -1,17 +1,35 @@
+require('fastclick')(document.body)
+
 console.log(require('mod'))
-console.log(require('path'))
-console.log(require('fs'))
-console.log(require('module'))
-console.log(module)
-console.log(exports)
-console.log(require)
 console.log(require.main)
 
-document.getElementById('toast').addEventListener('click', function () {
-  require('resworb').toast.show('test message', 'center').then(res => {
-    console.log(res)
-  })
+const Vue = require('vue/dist/vue.runtime.common.prod.js')
+
+const vm = new Vue({
+  data: {
+    count: 0
+  },
+  methods: {
+    testClick: function () {
+      this.count++
+    },
+    testToast: function () {
+      require('resworb').toast.show('test message', 'center').then(res => {
+        console.log(res)
+      })
+    },
+    logCallbacks: function () {
+      console.log(__resworb_callbacks__)
+    }
+  },
+  render: function (h) {
+    return h('div', [
+      h('div', [h('button', { on: { click: this.testToast } }, 'toast')]),
+      h('div', [h('button', { on: { click: this.logCallbacks } }, 'callbacks')]),
+      h('div', [h('button', { on: { click: this.testClick } }, 'add')]),
+      this.count
+    ])
+  }
 })
-document.getElementById('callbacks').addEventListener('click', function () {
-  console.log(__resworb_callbacks__)
-})
+
+vm.$mount('#root');

@@ -6,73 +6,11 @@
   <title>index</title>
 </head>
 <body>
-  <button id="toast">toast</button>
-  <button id="callbacks">callbacks</button>
+  <div id="root"></div>
   <script src="https://cdn.jsdelivr.net/gh/Tencent/vConsole@v3.3.4/dist/vconsole.min.js"></script>
   <script>
-  
-  // (function () {
-  //   if (typeof resworb === 'undefined') {
-  //     return;
-  //   }
-
-  //   var invoke = resworb.invoke;
-  //   var invokeSync = resworb.invokeSync;
-
-  //   delete resworb.invoke;
-  //   delete resworb.invokeSync;
-
-  //   var callbackMap = {};
-
-  //   function parseJavaResponse (res) {
-  //     if (res === '') return undefined;
-  //     return JSON.parse(res);
-  //   }
-  //   function callNative (name, arg) {
-  //     return new Promise((resolve, reject) => {
-  //       var callid = Math.random().toString();
-  //       callbackMap[callid] = {
-  //         resolve: function (value) {
-  //           delete callbackMap[callid];
-  //           resolve(parseJavaResponse(value));
-  //         },
-  //         reject: function (err) {
-  //           delete callbackMap[callid];
-  //           reject(err);
-  //         }
-  //       };
-  //       invoke.call(resworb, name, callid, arg != null ? ('' + JSON.stringify(arg)) : JSON.stringify({}));
-  //     })
-  //   }
-
-  //   function callNativeSync (name, arg) {
-  //     var res = invokeSync.call(resworb, name, arg);
-  //     return parseJavaResponse(res);
-  //   }
-
-  //   resworb.callNative = callNative;
-  //   resworb.callNativeSync = callNativeSync;
-  //   resworb.map = callbackMap;
-  // })();
   new VConsole();
-  // console.log(Object.keys(resworb))
-  
-
   window.addEventListener('resworbready', function () {
-    // console.log(Object.keys(resworb))
-    // console.log(resworb.fs.readFileSync('file:///android_asset/module.js'))
-    // console.log(resworb.fs.existsSync('file:///android_asset/module.js'))
-    // console.log(resworb.fs.existsSync('file:///android_asset/modules.js'))
-    // console.log(resworb.fs.existsSync('file:///android_asset/emptydir'))
-    // console.log(resworb.fs.existsSync('file:///android_asset/subdir'))
-    // console.log(resworb.fs.statSync('file:///android_asset/module.js').isDirectory())
-    // console.log(resworb.fs.statSync('file:///android_asset/subdir').isDirectory())
-    // console.log(1)
-    // resworb.callNative('test', { data: '478' }).then(res => {
-    //   console.log(res)
-    // }).catch(err => {
-    //   console.error(err)
-    // })
     try {
       require('./index.js')
     } catch (error) {
