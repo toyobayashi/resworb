@@ -1,12 +1,15 @@
 package com.github.toyobayashi.resworb;
 
 import android.app.Activity;
+import android.view.Gravity;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import org.json.JSONException;
@@ -21,6 +24,8 @@ public class ResworbApi {
   private Gson gson;
   private Activity activity;
   private FileSystemUtil fs;
+
+  private Toast _t = null;
 
   ResworbApi(WebView wv, Activity activity) {
     this.wv = wv;
@@ -47,6 +52,40 @@ public class ResworbApi {
         wv.evaluateJavascript(js, null);
       }
     });
+  }
+
+  private void reject(final String promiseId, final String errConstructor, final Exception err) {
+    activity.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        String js = "__resworb_callbacks__['" + promiseId + "'].reject(new " + errConstructor + "('" + err.toString() + "'))";
+        wv.evaluateJavascript(js, null);
+      }
+    });
+  }
+
+  private void toast(final String promiseId, final JsonObject arg) {
+    if (!arg.has("message")) {
+      reject(promiseId, "TypeError", new Exception("message undefined"));
+      return;
+    }
+    int duration = arg.has("duration") ? arg.get("duration").getAsInt() : Toast.LENGTH_SHORT;
+    if (_t != null) _t.cancel();
+    _t = Toast.makeText(activity, arg.get("message").getAsString(), duration);
+
+    if (arg.has("gravity")) {
+      String gravityString = arg.get("gravity").getAsString();
+      int g = Gravity.BOTTOM;
+      switch (gravityString) {
+        case "center": g = Gravity.CENTER; break;
+        case "top": g = Gravity.TOP; break;
+        default: g = Gravity.BOTTOM; break;
+      }
+      _t.setGravity(g, 0, 0);
+    }
+
+    _t.show();
+    resolve(promiseId, "");
   }
 
   private void test(final String promiseId, final JsonObject arg) {

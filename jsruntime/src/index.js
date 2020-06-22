@@ -10,6 +10,8 @@ import * as querystring from '@tybys/denostd/dist/esm/std/node/querystring.js';
 import * as url from '@tybys/denostd/dist/esm/std/node/url.js';
 import * as util from '@tybys/denostd/dist/esm/std/node/util.js';
 
+import * as resworb from './modules/resworb.js';
+
 var mainModule = createModule({
   fs: fs, // need implement readFileSync statSync existsSync
   path: path,
@@ -18,7 +20,8 @@ var mainModule = createModule({
   events: events,
   querystring: querystring,
   url: url,
-  util: util
+  util: util,
+  resworb: resworb
 }, window.location.href);
 
 window.module = mainModule;

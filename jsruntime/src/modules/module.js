@@ -14,6 +14,11 @@ function stripBOM (content) {
 
 export function createModule (builtinModules, entry) {
   builtinModules.module = Module;
+
+  if (!builtinModules.fs) {
+    throw new Error('Must implement fs.readFileSync & fs.statSync & fs.existsSync at least');
+  }
+
   var fs = builtinModules.fs;
   if (!builtinModules.path) {
     builtinModules.path = _path;

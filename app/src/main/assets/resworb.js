@@ -630,6 +630,8 @@
 	  ObjectId.prototype._bsontype = 'ObjectID';
 	}
 
+	var ObjectId_1 = ObjectId;
+
 	var _resworb = window.resworb;
 	var callbacks = {};
 	delete window.resworb;
@@ -644,6 +646,26 @@
 	function parseJavaResponse(res) {
 	  if (res === '') return undefined;
 	  return JSON.parse(res);
+	}
+
+	function callNative(name, arg) {
+	  return new Promise(function (_resolve, _reject) {
+	    var callid = new ObjectId_1().toHexString();
+	    callbacks[callid] = {
+	      resolve: function resolve(value) {
+	        delete callbacks[callid];
+
+	        _resolve(parseJavaResponse(value));
+	      },
+	      reject: function reject(err) {
+	        delete callbacks[callid];
+
+	        _reject(err);
+	      }
+	    };
+
+	    _resworb.invoke(name, callid, arg != null ? '' + JSON.stringify(arg) : JSON.stringify({}));
+	  });
 	}
 
 	function callNativeSync(name, arg) {
@@ -3066,6 +3088,11 @@
 
 	function createModule(builtinModules, entry) {
 	  builtinModules.module = Module;
+
+	  if (!builtinModules.fs) {
+	    throw new Error('Must implement fs.readFileSync & fs.statSync & fs.existsSync at least');
+	  }
+
 	  var fs = builtinModules.fs;
 
 	  if (!builtinModules.path) {
@@ -6830,6 +6857,23 @@
 		pathToFileURL: pathToFileURL
 	});
 
+	function show(message, position) {
+	  return callNative('toast', {
+	    message: message,
+	    gravity: position
+	  });
+	}
+
+	var toast = /*#__PURE__*/Object.freeze({
+		__proto__: null,
+		show: show
+	});
+
+	var resworb = /*#__PURE__*/Object.freeze({
+		__proto__: null,
+		toast: toast
+	});
+
 	var mainModule = createModule({
 	  fs: fs,
 	  // need implement readFileSync statSync existsSync
@@ -6839,7 +6883,8 @@
 	  events: events,
 	  querystring: querystring,
 	  url: url,
-	  util: util$1
+	  util: util$1,
+	  resworb: resworb
 	}, window.location.href);
 	window.module = mainModule;
 	window.exports = mainModule.exports;
