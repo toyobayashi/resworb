@@ -6,13 +6,10 @@ import android.webkit.WebView;
 
 import com.google.gson.Gson;
 
-import org.json.JSONArray;
-
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import org.json.JSONException;
-import org.json.JSONStringer;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;

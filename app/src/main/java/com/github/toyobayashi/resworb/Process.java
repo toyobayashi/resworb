@@ -1,8 +1,4 @@
 package com.github.toyobayashi.resworb;
-
-import android.os.Build;
-
-import java.io.File;
 import java.util.Map;
 
 public class Process {

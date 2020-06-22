@@ -5,6 +5,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class ResworbClient extends WebViewClient {
   private FileSystemUtil fs;
@@ -15,7 +16,7 @@ public class ResworbClient extends WebViewClient {
   private void evaluateJavascript(WebView view, final String path) {
     String js = "";
     try {
-      js = fs.readFile(path);
+      js = new String(fs.readFile(path), StandardCharsets.UTF_8);
     } catch (FileSystemException | IOException e) {
       view.evaluateJavascript("throw new Error('" + e.toString() + "')", null);
       return;

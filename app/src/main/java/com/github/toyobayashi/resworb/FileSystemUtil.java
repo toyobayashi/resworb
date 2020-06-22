@@ -1,16 +1,12 @@
 package com.github.toyobayashi.resworb;
 
 import android.app.Activity;
-import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
@@ -66,14 +62,14 @@ public class FileSystemUtil {
     return new FileInputStream(f);
   }
 
-  public String readFile(String path) throws FileSystemException, IOException {
+  public byte[] readFile(String path) throws FileSystemException, IOException {
     InputStream is = getFileInputStream(path);
     int fileSize = is.available();
     byte[] buffer = new byte[fileSize];
     is.read(buffer);
     is.close();
-    String res = new String(buffer, StandardCharsets.UTF_8);
-    return res;
+    // String res = new String(buffer, StandardCharsets.UTF_8);
+    return buffer;
   }
 
   private HashMap<String, FileStats> listAssets(String path) throws IOException {

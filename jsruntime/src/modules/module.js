@@ -1,5 +1,4 @@
 import { CHAR_FORWARD_SLASH, nmChars, validateString } from './_constants.js';
-import { slice } from './buffer.js';
 
 var nmLen = nmChars.length;
 
@@ -7,7 +6,7 @@ var statCache = Object.create(null);
 
 function stripBOM (content) {
   if (content.charCodeAt(0) === 0xFEFF) {
-    content = slice(content, 1);
+    content = content.slice(1);
   }
   return content;
 }

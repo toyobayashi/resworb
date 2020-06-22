@@ -3,6 +3,7 @@ import * as fs from './modules/fs.js';
 import { createModule } from './modules/module.js';
 import * as path from './modules/path.js';
 import { process } from './modules/process.js';
+import { Buffer } from './modules/buffer.js';
 
 var mainModule = createModule({
   fs: fs,
@@ -32,6 +33,13 @@ Object.defineProperty(window, Symbol.toStringTag, {
 
 Object.defineProperty(window, 'process', {
   value: process,
+  enumerable: false,
+  writable: true,
+  configurable: true
+});
+
+Object.defineProperty(window, 'Buffer', {
+  value: Buffer,
   enumerable: false,
   writable: true,
   configurable: true

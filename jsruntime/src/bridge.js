@@ -8,7 +8,7 @@ function parseJavaResponse (res) {
 }
 
 function callNative (name, arg) {
-  return new Promise((resolve, reject) => {
+  return new Promise(function (resolve, reject) {
     var callid = Math.random().toString();
     callbackMap[callid] = {
       resolve: function (value) {
