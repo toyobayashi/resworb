@@ -1,11 +1,12 @@
 import { callNative, callNativeSync, map } from './bridge.js';
 import * as fs from './modules/fs.js';
-import { createModuleClass } from './modules/module.js';
+import { createModule } from './modules/module.js';
 import * as path from './modules/path.js';
 
-var m = createModuleClass(fs, window.location.href);
-// var Module = m.Module;
-var mainModule = m.mainModule;
+var mainModule = createModule({
+  fs: fs,
+  path: path
+}, window.location.href);
 
 window.resworb = {
   callNative: callNative,

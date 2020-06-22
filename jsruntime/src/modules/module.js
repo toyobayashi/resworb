@@ -1,65 +1,9 @@
-import { CHAR_FORWARD_SLASH, nmChars, validateString, validateFunction } from './_constants.js';
+import { CHAR_FORWARD_SLASH, nmChars, validateString } from './_constants.js';
 import { slice } from './buffer.js';
-import * as path from './path.js';
 
 var nmLen = nmChars.length;
 
 var statCache = Object.create(null);
-
-export var globalBuiltins = Object.create(null);
-export var extensions = Object.create(null);
-
-Object.defineProperty(globalBuiltins, 'path', {
-  configurable: false,
-  writable: false,
-  enumerable: true,
-  value: path
-});
-
-function resolve () {
-  var args = Array.prototype.slice.call(arguments);
-  if (args.length > 0 && args[0].indexOf('file://') === 0) {
-    args[0] = args[0].substring(7);
-    return 'file://' + path.resolve.apply(undefined, args);
-  }
-  return path.resolve.apply(undefined, args);
-}
-
-function join () {
-  var args = Array.prototype.slice.call(arguments);
-  if (args.length > 0 && args[0].indexOf('file://') === 0) {
-    args[0] = args[0].substring(7);
-    return 'file://' + path.join.apply(undefined, args);
-  }
-  return path.join.apply(undefined, args);
-}
-
-export function requireModule (moduleName) {
-  validateString(moduleName, 'moduleName');
-  if (moduleName in globalBuiltins) {
-    return globalBuiltins[moduleName];
-  }
-  throw new Error('Cannot find module \'' + moduleName + '\'. ');
-}
-
-export function injectModule (moduleName, m) {
-  validateString(moduleName, 'moduleName');
-  if (typeof m === 'function') {
-    var module = { exports: {} };
-    m.call(module.exports, module.exports, function require (moduleName) {
-      return requireModule(moduleName);
-    }, module);
-    globalBuiltins[moduleName] = module.exports;
-  } else {
-    globalBuiltins[moduleName] = m;
-  }
-}
-
-export function extendModule (ext, compilerFactory) {
-  validateString(ext, 'ext');
-  validateFunction(compilerFactory, 'compilerFactory');
-  extensions[ext] = compilerFactory;
-}
 
 function stripBOM (content) {
   if (content.charCodeAt(0) === 0xFEFF) {
@@ -68,14 +12,34 @@ function stripBOM (content) {
   return content;
 }
 
-export function createModuleClass (fs, entry) {
+export function createModule (builtinModules, entry) {
+  builtinModules.module = Module;
+  var fs = builtinModules.fs;
+  var path = builtinModules.path;
+
   var modulePaths = [];
   var packageJsonCache = Object.create(null);
 
-  var mainModule = entry ? new Module(entry, null) : null;
-  if (mainModule) {
-    mainModule.filename = entry;
-    mainModule.loaded = true;
+  var mainModule = new Module(entry || '/', null);
+  mainModule.filename = entry;
+  mainModule.loaded = true;
+
+  function resolve () {
+    var args = Array.prototype.slice.call(arguments);
+    if (args.length > 0 && args[0].indexOf('file://') === 0) {
+      args[0] = args[0].substring(7);
+      return 'file://' + path.resolve.apply(undefined, args);
+    }
+    return path.resolve.apply(undefined, args);
+  }
+
+  function join () {
+    var args = Array.prototype.slice.call(arguments);
+    if (args.length > 0 && args[0].indexOf('file://') === 0) {
+      args[0] = args[0].substring(7);
+      return 'file://' + path.join.apply(undefined, args);
+    }
+    return path.join.apply(undefined, args);
   }
 
   function statSync (p) {
@@ -146,15 +110,6 @@ export function createModuleClass (fs, entry) {
       throw err;
     }
   };
-
-  for (var ext in extensions) {
-    var internals = Object.keys(Module._extensions);
-    if (internals.indexOf(ext) === -1) {
-      Module._extensions[ext] = extensions[ext](function require (moduleName) {
-        return getBuiltinModule(moduleName);
-      });
-    }
-  }
 
   Module._nodeModulePaths = function _nodeModulePaths (from) {
     // Guarantee that 'from' is absolute.
@@ -427,15 +382,11 @@ export function createModuleClass (fs, entry) {
   }
 
   function getBuiltinModule (request) {
-    switch (request) {
-      case 'fs': return fs;
-      case 'module': return Module;
-      default: return requireModule(request);
+    if (request in builtinModules && Object.prototype.hasOwnProperty.call(builtinModules, request)) {
+      return builtinModules[request];
     }
+    throw new Error('Cannot find module \'' + request + '\'. ');
   }
 
-  return {
-    mainModule: mainModule,
-    Module: Module
-  };
+  return mainModule;
 }
