@@ -1,5 +1,5 @@
 import { CHAR_FORWARD_SLASH, nmChars, validateString } from './_constants.js';
-import * as _path from './path.js';
+import * as _path from '@tybys/denostd/dist/esm/std/path/mod.js';
 
 var nmLen = nmChars.length;
 
@@ -15,7 +15,10 @@ function stripBOM (content) {
 export function createModule (builtinModules, entry) {
   builtinModules.module = Module;
   var fs = builtinModules.fs;
-  var path = builtinModules.path || _path;
+  if (!builtinModules.path) {
+    builtinModules.path = _path;
+  }
+  var path = builtinModules.path;
 
   var modulePaths = [];
   var packageJsonCache = Object.create(null);
