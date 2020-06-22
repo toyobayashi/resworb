@@ -2,7 +2,7 @@ import {
   CHAR_DOT,
   CHAR_FORWARD_SLASH,
   validateString
-} from './constants.js';
+} from './_constants.js';
 
 export function resolve () {
   var args = Array.prototype.slice.call(arguments);

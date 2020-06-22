@@ -2,7 +2,7 @@ module.exports = {
   input: 'src/index.js',
   output: {
     file: '../app/src/main/assets/resworb.js',
-    format: 'umd',
+    format: 'iife',
     name: 'resworb',
     exports: 'named'
   },

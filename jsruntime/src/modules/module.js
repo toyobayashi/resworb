@@ -1,8 +1,10 @@
-import { CHAR_FORWARD_SLASH, nmChars, validateString, validateFunction } from './constants.js';
+import { CHAR_FORWARD_SLASH, nmChars, validateString, validateFunction } from './_constants.js';
 import { slice } from './buffer.js';
 import * as path from './path.js';
 
 var nmLen = nmChars.length;
+
+var statCache = Object.create(null);
 
 export var globalBuiltins = Object.create(null);
 export var extensions = Object.create(null);
@@ -13,6 +15,24 @@ Object.defineProperty(globalBuiltins, 'path', {
   enumerable: true,
   value: path
 });
+
+function resolve () {
+  var args = Array.prototype.slice.call(arguments);
+  if (args.length > 0 && args[0].indexOf('file://') === 0) {
+    args[0] = args[0].substring(7);
+    return 'file://' + path.resolve.apply(undefined, args);
+  }
+  return path.resolve.apply(undefined, args);
+}
+
+function join () {
+  var args = Array.prototype.slice.call(arguments);
+  if (args.length > 0 && args[0].indexOf('file://') === 0) {
+    args[0] = args[0].substring(7);
+    return 'file://' + path.join.apply(undefined, args);
+  }
+  return path.join.apply(undefined, args);
+}
 
 export function requireModule (moduleName) {
   validateString(moduleName, 'moduleName');
@@ -48,9 +68,50 @@ function stripBOM (content) {
   return content;
 }
 
-export function createModuleClass (fs, makeRequireFunction) {
+export function createModuleClass (fs, entry) {
   var modulePaths = [];
   var packageJsonCache = Object.create(null);
+
+  var mainModule = entry ? new Module(entry, null) : null;
+  if (mainModule) {
+    mainModule.filename = entry;
+    mainModule.loaded = true;
+  }
+
+  function statSync (p) {
+    if (statCache[p]) {
+      return statCache[p];
+    }
+    var stat = fs.statSync(p);
+    statCache[p] = stat;
+    return stat;
+  }
+
+  function makeRequireFunction (mod) {
+    var Module = mod.constructor;
+    var require = function require (path) {
+      return mod.require(path);
+    };
+
+    function resolve (request) {
+      validateString(request, 'request');
+      return Module._resolveFilename(request, mod, false);
+    }
+
+    require.resolve = resolve;
+
+    function paths (request) {
+      validateString(request, 'request');
+      return Module._resolveLookupPaths(request, mod);
+    }
+
+    resolve.paths = paths;
+    require.main = mainModule;
+    require.extensions = Module._extensions;
+    require.cache = Module._cache;
+
+    return require;
+  }
 
   function Module (id, parent) {
     this.id = id;
@@ -97,7 +158,7 @@ export function createModuleClass (fs, makeRequireFunction) {
 
   Module._nodeModulePaths = function _nodeModulePaths (from) {
     // Guarantee that 'from' is absolute.
-    from = path.resolve(from);
+    from = resolve(from);
     // Return early not only to avoid unnecessary work, but to *avoid* returning
     // an array of two items for a root: [ '//node_modules', '/node_modules' ]
     if (from === '/') return ['/node_modules'];
@@ -122,6 +183,13 @@ export function createModuleClass (fs, makeRequireFunction) {
         } else {
           p = -1;
         }
+      }
+    }
+
+    if (from.indexOf('file://') === 0) {
+      var removeIndex = paths.indexOf('file://node_modules');
+      if (removeIndex !== -1) {
+        paths.splice(removeIndex, 1);
       }
     }
 
@@ -190,7 +258,7 @@ export function createModuleClass (fs, makeRequireFunction) {
 
       if (!trailingSlash) {
         if (fs.existsSync(basePath)) {
-          var stat = fs.statSync(basePath);
+          var stat = statSync(basePath);
           if (stat.isFile()) {
             return basePath;
           }
@@ -275,11 +343,14 @@ export function createModuleClass (fs, makeRequireFunction) {
   };
 
   function resolveExports (nmPath, request) {
-    return path.resolve(nmPath, request);
+    if (request.indexOf('file://') === 0) {
+      return request;
+    }
+    return resolve(nmPath, request);
   }
 
   function tryFile (requestPath, isMain) {
-    if (fs.existsSync(requestPath) && fs.statSync(requestPath).isFile()) {
+    if (fs.existsSync(requestPath) && statSync(requestPath).isFile()) {
       return requestPath;
     }
     return false;
@@ -297,7 +368,7 @@ export function createModuleClass (fs, makeRequireFunction) {
   }
 
   function readPackage (requestPath) {
-    var p = path.join(requestPath, 'package.json');
+    var p = join(requestPath, 'package.json');
     if (packageJsonCache[p]) return packageJsonCache[p];
     var json;
     try {
@@ -330,15 +401,15 @@ export function createModuleClass (fs, makeRequireFunction) {
     var pkg = readPackageMain(requestPath);
 
     if (!pkg) {
-      return tryExtensions(path.resolve(requestPath, 'index'), exts, isMain);
+      return tryExtensions(resolve(requestPath, 'index'), exts, isMain);
     }
 
-    var filename = path.resolve(requestPath, pkg);
+    var filename = resolve(requestPath, pkg);
     var actual = tryFile(filename, isMain) ||
       tryExtensions(filename, exts, isMain) ||
-      tryExtensions(path.resolve(filename, 'index'), exts, isMain);
+      tryExtensions(resolve(filename, 'index'), exts, isMain);
     if (actual === false) {
-      actual = tryExtensions(path.resolve(requestPath, 'index'), exts, isMain);
+      actual = tryExtensions(resolve(requestPath, 'index'), exts, isMain);
       if (!actual) {
         // eslint-disable-next-line no-restricted-syntax
         var err = new Error(
@@ -346,7 +417,7 @@ export function createModuleClass (fs, makeRequireFunction) {
           'Please verify that the package.json has a valid "main" entry'
         );
         err.code = 'MODULE_NOT_FOUND';
-        err.path = path.resolve(requestPath, 'package.json');
+        err.path = resolve(requestPath, 'package.json');
         err.requestPath = originalPath;
         // TODO(BridgeAR): Add the requireStack as well.
         throw err;
@@ -363,5 +434,8 @@ export function createModuleClass (fs, makeRequireFunction) {
     }
   }
 
-  return Module;
+  return {
+    mainModule: mainModule,
+    Module: Module
+  };
 }

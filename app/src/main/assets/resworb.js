@@ -1,7 +1,5 @@
-(function (factory) {
-  typeof define === 'function' && define.amd ? define(factory) :
-  factory();
-}((function () { 'use strict';
+(function () {
+  'use strict';
 
   var _resworb = window.resworb;
 
@@ -60,37 +58,25 @@
     return !this._info.dir;
   };
 
-  /**
-   * @constructor
-   */
-  function Filesystem () {
+  function readFileSync (p, toUtf8) {
+    return callNativeSync('readFileSync', p);
   }
 
-  /**
-   * @type {((p: string) => Uint8Array) & ((p: string, toUtf8: true) => string)}
-   */
-  Filesystem.prototype.readFileSync = function readFileSync (p, toUtf8) {
-    return callNativeSync('readFileSync', p);
-  };
-
-  /**
-   * @method
-   * @param {string} p - path
-   * @returns {boolean}
-   */
-  Filesystem.prototype.existsSync = function existsSync (p) {
+  function existsSync (p) {
     return callNativeSync('existsSync', p);
-  };
+  }
 
-  /**
-   * @method
-   * @param {string} p - path
-   * @returns {Stat}
-   */
-  Filesystem.prototype.statSync = function statSync (p) {
+  function statSync (p) {
     var obj = callNativeSync('statSync', p);
     return new Stat(obj);
-  };
+  }
+
+  var fs = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    readFileSync: readFileSync,
+    existsSync: existsSync,
+    statSync: statSync
+  });
 
   var CHAR_DOT = 46;
   var CHAR_FORWARD_SLASH = 47;
@@ -100,10 +86,6 @@
 
   var validateString = function validateString (value, name) {
     if (typeof value !== 'string') throw new TypeError('The "' + name + '" argument must be of type string. Received type ' + typeof value);
-  };
-
-  var validateFunction = function validateFunction (value, name) {
-    if (typeof value !== 'function') throw new TypeError('The "' + name + '" argument must be of type function. Received type ' + typeof value);
   };
 
   // Based on http://stackoverflow.com/a/22747272/680742, the browser with
@@ -588,6 +570,8 @@
 
   var nmLen = nmChars.length;
 
+  var statCache = Object.create(null);
+
   var globalBuiltins = Object.create(null);
   var extensions = Object.create(null);
 
@@ -598,31 +582,30 @@
     value: path
   });
 
+  function resolve$1 () {
+    var args = Array.prototype.slice.call(arguments);
+    if (args.length > 0 && args[0].indexOf('file://') === 0) {
+      args[0] = args[0].substring(7);
+      return 'file://' + resolve.apply(undefined, args);
+    }
+    return resolve.apply(undefined, args);
+  }
+
+  function join$1 () {
+    var args = Array.prototype.slice.call(arguments);
+    if (args.length > 0 && args[0].indexOf('file://') === 0) {
+      args[0] = args[0].substring(7);
+      return 'file://' + join.apply(undefined, args);
+    }
+    return join.apply(undefined, args);
+  }
+
   function requireModule (moduleName) {
     validateString(moduleName, 'moduleName');
     if (moduleName in globalBuiltins) {
       return globalBuiltins[moduleName];
     }
     throw new Error('Cannot find module \'' + moduleName + '\'. ');
-  }
-
-  function injectModule (moduleName, m) {
-    validateString(moduleName, 'moduleName');
-    if (typeof m === 'function') {
-      var module = { exports: {} };
-      m.call(module.exports, module.exports, function require (moduleName) {
-        return requireModule(moduleName);
-      }, module);
-      globalBuiltins[moduleName] = module.exports;
-    } else {
-      globalBuiltins[moduleName] = m;
-    }
-  }
-
-  function extendModule (ext, compilerFactory) {
-    validateString(ext, 'ext');
-    validateFunction(compilerFactory, 'compilerFactory');
-    extensions[ext] = compilerFactory;
   }
 
   function stripBOM (content) {
@@ -632,9 +615,50 @@
     return content;
   }
 
-  function createModuleClass (fs, makeRequireFunction) {
+  function createModuleClass (fs, entry) {
     var modulePaths = [];
     var packageJsonCache = Object.create(null);
+
+    var mainModule = entry ? new Module(entry, null) : null;
+    if (mainModule) {
+      mainModule.filename = entry;
+      mainModule.loaded = true;
+    }
+
+    function statSync (p) {
+      if (statCache[p]) {
+        return statCache[p];
+      }
+      var stat = fs.statSync(p);
+      statCache[p] = stat;
+      return stat;
+    }
+
+    function makeRequireFunction (mod) {
+      var Module = mod.constructor;
+      var require = function require (path) {
+        return mod.require(path);
+      };
+
+      function resolve (request) {
+        validateString(request, 'request');
+        return Module._resolveFilename(request, mod, false);
+      }
+
+      require.resolve = resolve;
+
+      function paths (request) {
+        validateString(request, 'request');
+        return Module._resolveLookupPaths(request, mod);
+      }
+
+      resolve.paths = paths;
+      require.main = mainModule;
+      require.extensions = Module._extensions;
+      require.cache = Module._cache;
+
+      return require;
+    }
 
     function Module (id, parent) {
       this.id = id;
@@ -681,7 +705,7 @@
 
     Module._nodeModulePaths = function _nodeModulePaths (from) {
       // Guarantee that 'from' is absolute.
-      from = resolve(from);
+      from = resolve$1(from);
       // Return early not only to avoid unnecessary work, but to *avoid* returning
       // an array of two items for a root: [ '//node_modules', '/node_modules' ]
       if (from === '/') return ['/node_modules'];
@@ -706,6 +730,13 @@
           } else {
             p = -1;
           }
+        }
+      }
+
+      if (from.indexOf('file://') === 0) {
+        var removeIndex = paths.indexOf('file://node_modules');
+        if (removeIndex !== -1) {
+          paths.splice(removeIndex, 1);
         }
       }
 
@@ -774,7 +805,7 @@
 
         if (!trailingSlash) {
           if (fs.existsSync(basePath)) {
-            var stat = fs.statSync(basePath);
+            var stat = statSync(basePath);
             if (stat.isFile()) {
               return basePath;
             }
@@ -859,11 +890,14 @@
     };
 
     function resolveExports (nmPath, request) {
-      return resolve(nmPath, request);
+      if (request.indexOf('file://') === 0) {
+        return request;
+      }
+      return resolve$1(nmPath, request);
     }
 
     function tryFile (requestPath, isMain) {
-      if (fs.existsSync(requestPath) && fs.statSync(requestPath).isFile()) {
+      if (fs.existsSync(requestPath) && statSync(requestPath).isFile()) {
         return requestPath;
       }
       return false;
@@ -881,7 +915,7 @@
     }
 
     function readPackage (requestPath) {
-      var p = join(requestPath, 'package.json');
+      var p = join$1(requestPath, 'package.json');
       if (packageJsonCache[p]) return packageJsonCache[p];
       var json;
       try {
@@ -914,15 +948,15 @@
       var pkg = readPackageMain(requestPath);
 
       if (!pkg) {
-        return tryExtensions(resolve(requestPath, 'index'), exts);
+        return tryExtensions(resolve$1(requestPath, 'index'), exts);
       }
 
-      var filename = resolve(requestPath, pkg);
+      var filename = resolve$1(requestPath, pkg);
       var actual = tryFile(filename) ||
         tryExtensions(filename, exts) ||
-        tryExtensions(resolve(filename, 'index'), exts);
+        tryExtensions(resolve$1(filename, 'index'), exts);
       if (actual === false) {
-        actual = tryExtensions(resolve(requestPath, 'index'), exts);
+        actual = tryExtensions(resolve$1(requestPath, 'index'), exts);
         if (!actual) {
           // eslint-disable-next-line no-restricted-syntax
           var err = new Error(
@@ -930,7 +964,7 @@
             'Please verify that the package.json has a valid "main" entry'
           );
           err.code = 'MODULE_NOT_FOUND';
-          err.path = resolve(requestPath, 'package.json');
+          err.path = resolve$1(requestPath, 'package.json');
           err.requestPath = originalPath;
           // TODO(BridgeAR): Add the requireStack as well.
           throw err;
@@ -947,242 +981,30 @@
       }
     }
 
-    return Module;
+    return {
+      mainModule: mainModule,
+      Module: Module
+    };
   }
 
-  function defineProperty (o, key, value) {
-    return Object.defineProperty(o, key, {
-      configurable: false,
-      writable: false,
-      enumerable: true,
-      value: value
-    });
-  }
-
-  /**
-   * @constructor
-   * @param {Filesystem} fs
-   */
-  function Modulesystem (fs) {
-    if (!(this instanceof Modulesystem)) {
-      return new Modulesystem(fs);
-    }
-
-    this.mainModule = null;
-    this.builtins = Object.create(null);
-    defineProperty(this.builtins, 'fs', fs);
-    var makeRequireFunction = (function (ms) {
-      return function makeRequireFunction (mod) {
-        var Module = mod.constructor;
-        var require = function require (path) {
-          return mod.require(path);
-        };
-
-        function resolve (request) {
-          validateString(request, 'request');
-          return Module._resolveFilename(request, mod, false);
-        }
-
-        require.resolve = resolve;
-
-        function paths (request) {
-          validateString(request, 'request');
-          return Module._resolveLookupPaths(request, mod);
-        }
-
-        resolve.paths = paths;
-        require.main = ms.mainModule;
-        require.extensions = Module._extensions;
-        require.cache = Module._cache;
-
-        return require;
-      };
-    })(this);
-    defineProperty(this.builtins, 'module', createModuleClass(fs, makeRequireFunction));
-  }
-
-  /**
-   * Run an asar package like a Node.js project.
-   * @param {string=} entry - entry module path
-   * @returns {any} module.exports of entry module
-   */
-  Modulesystem.prototype.run = function run (entry) {
-    entry = entry !== undefined ? entry : '/';
-    validateString(entry);
-
-    var Module = this.builtins.module;
-    var entryPath = Module._resolveFilename(entry, null, true);
-    var module = Module._cache[entryPath] = new Module(entryPath, null);
-    module.filename = entryPath;
-    module.paths = Module._nodeModulePaths(dirname(entryPath));
-    this.mainModule = module;
-    try {
-      Module._extensions[extname(entryPath)](module, entryPath);
-    } catch (err) {
-      delete Module._cache[entryPath];
-      this.mainModule = null;
-      throw err;
-    }
-    module.loaded = true;
-
-    return module.exports;
-  };
-
-  /**
-   * Require builtin module.
-   * @param {string} moduleName - module name
-   * @returns {any}
-   */
-  Modulesystem.prototype.require = function require (moduleName) {
-    validateString(moduleName, 'moduleName');
-    if (moduleName in this.builtins) {
-      return this.builtins[moduleName];
-    }
-    if (moduleName in globalBuiltins) {
-      return globalBuiltins[moduleName];
-    }
-    throw new Error('Cannot find module \'' + moduleName + '\'. ');
-  };
-
-  /**
-   * Inject builtin module that can be required in asar package.
-   * @param {string} moduleName - module name
-   * @param {any} m - function or any value
-   */
-  Modulesystem.prototype.inject = function inject (moduleName, m) {
-    validateString(moduleName, 'moduleName');
-    if (typeof m === 'function') {
-      var module = { exports: {} };
-      m.call(module.exports, module.exports, this.require.bind(this), module);
-      this.builtins[moduleName] = module.exports;
-    } else {
-      this.builtins[moduleName] = m;
-    }
-  };
-
-  /**
-   * Handle custom file format.
-   * @param {string} ext - extension
-   * @param {(this: Modulesystem, require: (this: Modulesystem, moduleName: string) => any) => (module: InstanceType<ReturnType<createModuleClass>>, filename: string) => void} compilerFactory - how to load file
-   */
-  Modulesystem.prototype.extend = function extend (ext, compilerFactory) {
-    validateString(ext, 'ext');
-    validateFunction(compilerFactory, 'compilerFactory');
-    this.builtins.module._extensions[ext] = compilerFactory.call(this, this.require.bind(this));
-  };
-
-  /**
-   * Run an asar package like a Node.js project.
-   * @param {Filesystem} fs - Filesystem object
-   * @param {string=} entry - entry module path
-   * @returns {any} module.exports of entry module
-   */
-  Modulesystem.run = function run (fs, entry) {
-    var ms = new Modulesystem(fs);
-    return ms.run(entry);
-  };
-
-  /**
-   * Require global builtin module.
-   * @param {string} moduleName - module name
-   * @returns {any}
-   */
-  Modulesystem.require = function require (moduleName) {
-    return requireModule(moduleName);
-  };
-
-  /**
-   * Inject global builtin module that can be required in asar package.
-   * @param {string} moduleName - module name
-   * @param {any} m - function or any value
-   */
-  Modulesystem.inject = function inject (moduleName, m) {
-    injectModule(moduleName, m);
-  };
-
-  /**
-   * Handle custom file format.
-   * @param {string} ext - extension
-   * @param {(require: (moduleName: string) => any) => (module: InstanceType<ReturnType<createModuleClass>>, filename: string) => void} compilerFactory - how to load file
-   */
-  Modulesystem.extend = function extend (ext, compilerFactory) {
-    extendModule(ext, compilerFactory);
-  };
-
-  var fs = new Filesystem();
-
-  // export { callNative, callNativeSync, map, fs }
+  var m = createModuleClass(fs, window.location.href);
+  // var Module = m.Module;
+  var mainModule = m.mainModule;
 
   window.resworb = {
     callNative: callNative,
     callNativeSync: callNativeSync,
-    map: callbackMap,
-    modules: new Modulesystem(fs)
+    map: callbackMap
   };
+
+  window.module = mainModule;
+  window.exports = mainModule.exports;
+  window.require = function require (path) {
+    return mainModule.require(path);
+  };
+  window.__filename = mainModule.filename;
+  window.__dirname = dirname(mainModule.filename);
 
   window.dispatchEvent(new Event('resworbready'));
 
-  // (function () {
-  //   if (typeof resworb === 'undefined') {
-  //     return;
-  //   }
-
-  //   var _resworb = resworb;
-
-  //   var callbackMap = {};
-
-  //   function parseJavaResponse (res) {
-  //     if (res === '') return undefined;
-  //     return JSON.parse(res);
-  //   }
-  //   function callNative (name, arg) {
-  //     return new Promise((resolve, reject) => {
-  //       var callid = Math.random().toString();
-  //       callbackMap[callid] = {
-  //         resolve: function (value) {
-  //           delete callbackMap[callid];
-  //           resolve(parseJavaResponse(value));
-  //         },
-  //         reject: function (err) {
-  //           delete callbackMap[callid];
-  //           reject(err);
-  //         }
-  //       };
-  //       _resworb.invoke(name, callid, arg != null ? ('' + JSON.stringify(arg)) : JSON.stringify({}));
-  //     })
-  //   }
-
-  //   function callNativeSync (name, arg) {
-  //     var res = _resworb.invokeSync(name, arg);
-  //     return parseJavaResponse(res);
-  //   }
-
-  //   function readFileSync (path) {
-  //     return callNativeSync('readFileSync', path)
-  //   }
-
-  //   function existsSync (path) {
-  //     return callNativeSync('existsSync', path)
-  //   }
-
-  //   function statSync (path) {
-  //     var obj = callNativeSync('statSync', path)
-  //     return new Stat(obj);
-  //   }
-
-  //   window.resworb = {
-  //     callNative: callNative,
-  //     callNativeSync: callNativeSync,
-  //     map: callbackMap,
-  //     fs: {
-  //       readFileSync: readFileSync,
-  //       existsSync: existsSync,
-  //       statSync: statSync
-  //     }
-  //   };
-
-  //   window.dispatchEvent(new Event('resworbready'));
-
-  // })();
-
-})));
+}());
