@@ -1,6 +1,18 @@
+import { ObjectId } from '@tybys/oid';
+
 var _resworb = window.resworb;
 
-var callbackMap = {};
+var callbacks = {};
+
+delete window.resworb;
+
+Object.defineProperty(window, '__resworb_callbacks__', {
+  configurable: false,
+  enumerable: false,
+  get: function () {
+    return callbacks;
+  }
+});
 
 function parseJavaResponse (res) {
   if (res === '') return undefined;
@@ -9,14 +21,14 @@ function parseJavaResponse (res) {
 
 function callNative (name, arg) {
   return new Promise(function (resolve, reject) {
-    var callid = Math.random().toString();
-    callbackMap[callid] = {
+    var callid = new ObjectId().toHexString();
+    callbacks[callid] = {
       resolve: function (value) {
-        delete callbackMap[callid];
+        delete callbacks[callid];
         resolve(parseJavaResponse(value));
       },
       reject: function (err) {
-        delete callbackMap[callid];
+        delete callbacks[callid];
         reject(err);
       }
     };
@@ -29,4 +41,4 @@ function callNativeSync (name, arg) {
   return parseJavaResponse(res);
 }
 
-export { callNative, callNativeSync, callbackMap as map };
+export { callNative, callNativeSync };

@@ -1,4 +1,4 @@
-import { map } from './bridge.js';
+import './bridge.js';
 import * as fs from './modules/fs.js';
 import { createModule } from './modules/module.js';
 import { process } from './modules/process.js';
@@ -20,10 +20,6 @@ var mainModule = createModule({
   url: url,
   util: util
 }, window.location.href);
-
-window.resworb = {
-  map: map
-};
 
 window.module = mainModule;
 window.exports = mainModule.exports;

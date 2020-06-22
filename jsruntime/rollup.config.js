@@ -1,5 +1,7 @@
 const rollupBabel = require('@rollup/plugin-babel').default
 const rollupNodeResolve = require('@rollup/plugin-node-resolve').default
+const rollupCommonJS = require('@rollup/plugin-commonjs')
+const { nativeRequireRollupPlugin } = require('@tybys/native-require/plugins/rollup')
 
 module.exports = {
   input: 'src/index.js',
@@ -11,7 +13,11 @@ module.exports = {
     exports: 'named'
   },
   plugins: [
+    nativeRequireRollupPlugin(),
     rollupNodeResolve(),
+    rollupCommonJS({
+      extensions: ['.js', 'jsx', '.ts', '.tsx']
+    }),
     require('@rollup/plugin-json')(),
     rollupBabel({
       babelHelpers: 'bundled'

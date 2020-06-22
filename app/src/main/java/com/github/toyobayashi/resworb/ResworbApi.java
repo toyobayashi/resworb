@@ -33,7 +33,7 @@ public class ResworbApi {
     activity.runOnUiThread(new Runnable() {
       @Override
       public void run() {
-        String js = "resworb.map['" + promiseId + "'].resolve('" + data + "')";
+        String js = "__resworb_callbacks__['" + promiseId + "'].resolve('" + data + "')";
         wv.evaluateJavascript(js, null);
       }
     });
@@ -43,7 +43,7 @@ public class ResworbApi {
     activity.runOnUiThread(new Runnable() {
       @Override
       public void run() {
-        String js = "resworb.map['" + promiseId + "'].reject(new Error('" + err.toString() + "'))";
+        String js = "__resworb_callbacks__['" + promiseId + "'].reject(new Error('" + err.toString() + "'))";
         wv.evaluateJavascript(js, null);
       }
     });
