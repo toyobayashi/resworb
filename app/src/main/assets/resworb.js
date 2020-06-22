@@ -958,6 +958,62 @@
     delimiter: delimiter
   });
 
+  function notImplemented (msg) {
+    var message = msg ? ('Not implemented: ' + msg) : 'Not implemented';
+    throw new Error(message);
+  }
+
+  var resworbVersion = '0.0.0-dev';
+
+  var versions = {
+    node: resworbVersion,
+    resworb: resworbVersion,
+    deno: '0.58.0'
+  };
+
+  function on (_event, _callback) {
+    notImplemented();
+  }
+
+  function chdir () {
+    notImplemented();
+  }
+
+  var env = callNativeSync('process_env', '');
+
+  var process = {
+    version: 'v' + versions.resworb,
+    versions: versions,
+    platform: 'android',
+    arch: (function () {
+      return callNativeSync('process_arch', '');
+    })(),
+    pid: (function () {
+      return callNativeSync('process_pid', '');
+    })(),
+    cwd: function cwd () {
+      return callNativeSync('process_cwd', '');
+    },
+    chdir: chdir,
+    exit: function exit (code) {
+      callNativeSync('process_exit', JSON.stringify(code || 0));
+    },
+    on,
+    get env () {
+      return env;
+    },
+    get argv () {
+      return [];
+    }
+  };
+
+  Object.defineProperty(process, Symbol.toStringTag, {
+    enumerable: false,
+    writable: true,
+    configurable: false,
+    value: 'process'
+  });
+
   var mainModule = createModule({
     fs: fs,
     path: path
@@ -976,6 +1032,31 @@
   };
   window.__filename = mainModule.filename;
   window.__dirname = dirname(mainModule.filename);
+
+  Object.defineProperty(window, Symbol.toStringTag, {
+    value: 'global',
+    writable: false,
+    enumerable: false,
+    configurable: true
+  });
+
+  Object.defineProperty(window, 'process', {
+    value: process,
+    enumerable: false,
+    writable: true,
+    configurable: true
+  });
+
+  window.global = window;
+
+  window.setImmediate = function setImmediate () {
+    var cb = arguments[0];
+    var args = Array.prototype.slice.call(arguments, 1);
+    var applyArgs = ([cb, 0]).concat(args);
+    return window.setTimeout.apply(window, applyArgs);
+  };
+
+  window.clearImmediate = window.clearTimeout;
 
   window.dispatchEvent(new Event('resworbready'));
 

@@ -7,6 +7,8 @@ import android.webkit.WebView;
 import com.google.gson.Gson;
 
 import org.json.JSONArray;
+
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import org.json.JSONException;
@@ -15,6 +17,7 @@ import org.json.JSONStringer;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Map;
 
 public class ResworbApi {
   private WebView wv;
@@ -64,6 +67,24 @@ public class ResworbApi {
     }
     if (methodName.equals("statSync")) {
       return gson.toJson(fs.stat(arg));
+    }
+    if (methodName.equals("process_arch")) {
+      return gson.toJson(Process.arch());
+    }
+    if (methodName.equals("process_pid")) {
+      return gson.toJson(Process.pid());
+    }
+    if (methodName.equals("process_cwd")) {
+      return gson.toJson(Process.cwd());
+    }
+    if (methodName.equals("process_exit")) {
+      Process.exit(gson.fromJson(arg, int.class));
+      return "";
+    }
+    if (methodName.equals("process_env")) {
+      Map<String, String> env = Process.env();
+      Gson mapGson = new GsonBuilder().enableComplexMapKeySerialization().create();
+      return mapGson.toJson(env);
     }
     return "";
   }
