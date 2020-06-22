@@ -3,11 +3,12 @@ import * as fs from './modules/fs.js';
 import { createModule } from './modules/module.js';
 import * as path from './modules/path.js';
 import { process } from './modules/process.js';
-import { Buffer } from './modules/buffer.js';
+import * as buffer from './modules/buffer.js';
 
 var mainModule = createModule({
-  fs: fs,
-  path: path
+  fs: fs, // need implement readFileSync statSync existsSync
+  path: path,
+  buffer: buffer
 }, window.location.href);
 
 window.resworb = {
@@ -39,7 +40,7 @@ Object.defineProperty(window, 'process', {
 });
 
 Object.defineProperty(window, 'Buffer', {
-  value: Buffer,
+  value: buffer.Buffer,
   enumerable: false,
   writable: true,
   configurable: true
