@@ -44,3 +44,10 @@ Object.defineProperty(process, Symbol.toStringTag, {
   configurable: false,
   value: 'process'
 });
+
+Object.defineProperty(window, 'process', {
+  value: process,
+  enumerable: false,
+  writable: true,
+  configurable: true
+});

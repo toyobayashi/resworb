@@ -1,8 +1,8 @@
 import './bridge.js';
-import * as fs from './modules/fs.js';
-import { createModule } from './modules/module.js';
-import { process } from './modules/process.js';
+import './modules/process.js';
 import * as buffer from '@tybys/denostd/dist/esm/std/node/buffer.js';
+import { createModule, makeRequireFunction } from './modules/module.js';
+import * as fs from './modules/fs.js';
 import * as path from '@tybys/denostd/dist/esm/std/path/mod.js';
 import * as timers from '@tybys/denostd/dist/esm/std/node/timers.js';
 import * as events from '@tybys/denostd/dist/esm/std/node/events.js';
@@ -26,9 +26,7 @@ var mainModule = createModule({
 
 window.module = mainModule;
 window.exports = mainModule.exports;
-window.require = function require (path) {
-  return mainModule.require(path);
-};
+window.require = makeRequireFunction(mainModule, mainModule);
 window.__filename = mainModule.filename;
 window.__dirname = path.dirname(mainModule.filename);
 
@@ -39,16 +37,7 @@ Object.defineProperty(window, Symbol.toStringTag, {
   configurable: true
 });
 
-Object.defineProperty(window, 'process', {
-  value: process,
-  enumerable: false,
-  writable: true,
-  configurable: true
-});
-
 window.global = window;
 
 window.setImmediate = timers.setImmediate;
 window.clearImmediate = timers.clearImmediate;
-
-window.dispatchEvent(new Event('resworbready'));

@@ -12,6 +12,32 @@ function stripBOM (content) {
   return content;
 }
 
+export function makeRequireFunction (mod, mainModule) {
+  var Module = mod.constructor;
+  var require = function require (path) {
+    return mod.require(path);
+  };
+
+  function resolve (request) {
+    validateString(request, 'request');
+    return Module._resolveFilename(request, mod, false);
+  }
+
+  require.resolve = resolve;
+
+  function paths (request) {
+    validateString(request, 'request');
+    return Module._resolveLookupPaths(request, mod);
+  }
+
+  resolve.paths = paths;
+  require.main = mainModule;
+  require.extensions = Module._extensions;
+  require.cache = Module._cache;
+
+  return require;
+}
+
 export function createModule (builtinModules, entry) {
   builtinModules.module = Module;
 
@@ -59,32 +85,6 @@ export function createModule (builtinModules, entry) {
     return stat;
   }
 
-  function makeRequireFunction (mod) {
-    var Module = mod.constructor;
-    var require = function require (path) {
-      return mod.require(path);
-    };
-
-    function resolve (request) {
-      validateString(request, 'request');
-      return Module._resolveFilename(request, mod, false);
-    }
-
-    require.resolve = resolve;
-
-    function paths (request) {
-      validateString(request, 'request');
-      return Module._resolveLookupPaths(request, mod);
-    }
-
-    resolve.paths = paths;
-    require.main = mainModule;
-    require.extensions = Module._extensions;
-    require.cache = Module._cache;
-
-    return require;
-  }
-
   function Module (id, parent) {
     this.id = id;
     this.filename = null;
@@ -105,8 +105,8 @@ export function createModule (builtinModules, entry) {
   Module._extensions['.js'] = function (module, filename) {
     var content = fs.readFileSync(filename, 'utf8');
     // eslint-disable-next-line no-new-func
-    var moduleWrapper = new Function('exports', 'require', 'module', '__filename', '__dirname', stripBOM(content));
-    moduleWrapper.call(module.exports, module.exports, makeRequireFunction(module), module, filename, path.dirname(filename));
+    var moduleWrapper = new Function('exports', 'require', 'module', '__filename', '__dirname', stripBOM(content) + '\n//@ sourceURL=' + filename);
+    moduleWrapper.call(module.exports, module.exports, makeRequireFunction(module, mainModule), module, filename, path.dirname(filename));
   };
 
   Module._extensions['.json'] = function (module, filename) {
