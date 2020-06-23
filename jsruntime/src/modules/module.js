@@ -105,7 +105,7 @@ export function createModule (builtinModules, entry) {
   Module._extensions['.js'] = function (module, filename) {
     var content = fs.readFileSync(filename, 'utf8');
     // eslint-disable-next-line no-new-func
-    var moduleWrapper = new Function('exports', 'require', 'module', '__filename', '__dirname', stripBOM(content) + '\n//@ sourceURL=' + filename);
+    var moduleWrapper = new Function('exports', 'require', 'module', '__filename', '__dirname', stripBOM(content) + '\n//# sourceURL=' + filename);
     moduleWrapper.call(module.exports, module.exports, makeRequireFunction(module, mainModule), module, filename, path.dirname(filename));
   };
 
